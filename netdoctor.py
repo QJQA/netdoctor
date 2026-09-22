@@ -9,6 +9,7 @@ netdoctor.py — Mac 家庭网络持续监测
 用法（只需要 Mac 自带的 python3，无需安装任何库）：
   python3 netdoctor.py                          # 一直跑，按 Ctrl+C 结束并生成报告
   python3 netdoctor.py -m 60                    # 跑 60 分钟后自动结束
+  python3 netdoctor.py --lang en                # 英文界面/报告
   python3 netdoctor.py --gw 192.168.1.1 --wan 223.5.5.5 119.29.29.29  # 手动指定地址
 """
 import argparse
@@ -31,18 +32,36 @@ GW_SPIKE_MS = 50     # 路由器延迟超过这个值算内网异常（正常 Wi
 DEFAULT_WAN = ["223.5.5.5", "119.29.29.29"]  # 阿里 DNS、腾讯 DNS：两家独立目标便于交叉验证
 
 KNOWN_HOSTS = {
-    "223.5.5.5": "阿里DNS",
-    "119.29.29.29": "腾讯DNS",
-    "114.114.114.114": "114DNS",
-    "8.8.8.8": "Google DNS",
-    "1.1.1.1": "Cloudflare DNS",
+    "223.5.5.5": {"zh": "阿里DNS", "en": "Alibaba DNS"},
+    "119.29.29.29": {"zh": "腾讯DNS", "en": "Tencent DNS"},
+    "114.114.114.114": {"zh": "114DNS", "en": "114DNS"},
+    "8.8.8.8": {"zh": "Google DNS", "en": "Google DNS"},
+    "1.1.1.1": {"zh": "Cloudflare DNS", "en": "Cloudflare DNS"},
 }
 
 WAN_COLORS = ["--wan", "--wan2", "--wan3", "--wan4"]
 
 
-def wan_label(host):
-    return KNOWN_HOSTS.get(host, host)
+def wan_label(host, lang="zh"):
+    entry = KNOWN_HOSTS.get(host)
+    if entry:
+        return entry.get(lang, entry["zh"])
+    return host
+
+
+def make_names(targets, lang="zh"):
+    """生成路由器/外网目标的展示名（中英文）。"""
+    if lang == "en":
+        names = {"gw": "Router (home LAN)"}
+        for k, host in targets.items():
+            if k != "gw":
+                names[k] = f"Internet — {wan_label(host, lang)}"
+    else:
+        names = {"gw": "路由器（家里内网）"}
+        for k, host in targets.items():
+            if k != "gw":
+                names[k] = f"外网 {wan_label(host, lang)}"
+    return names
 
 
 def detect_gateway():
@@ -70,7 +89,7 @@ def ping_once(host, timeout_ms):
         return None
 
 
-def precheck(targets, timeout_ms):
+def precheck(targets, timeout_ms, lang="zh"):
     """跑之前粗测一遍每个目标，剔除完全不回应 ping 的外网目标（避免整轮测试作废）。"""
     ok_targets = {}
     notes = []
@@ -80,9 +99,17 @@ def precheck(targets, timeout_ms):
         if reachable or key == "gw":
             ok_targets[key] = host
             if not reachable:
-                notes.append(f"⚠ 路由器 {host} 预检未回应 ping，仍会继续监测（可能是防火墙屏蔽了 ping）。")
+                if lang == "en":
+                    notes.append(f"⚠ Router {host} didn't respond to the precheck ping — monitoring will continue "
+                                 "anyway (a firewall may be blocking ping).")
+                else:
+                    notes.append(f"⚠ 路由器 {host} 预检未回应 ping，仍会继续监测（可能是防火墙屏蔽了 ping）。")
         else:
-            notes.append(f"⚠ 已跳过 {wan_label(host)}（{host}）：预检 2 次都不回应，该服务器可能本身屏蔽 ping。")
+            if lang == "en":
+                notes.append(f"⚠ Skipped {wan_label(host, lang)} ({host}): no response after 2 precheck pings — "
+                              "that server may block ping itself.")
+            else:
+                notes.append(f"⚠ 已跳过 {wan_label(host, lang)}（{host}）：预检 2 次都不回应，该服务器可能本身屏蔽 ping。")
     return ok_targets, notes
 
 
@@ -172,7 +199,7 @@ def classify_pattern(events_ts, interval):
     return "irregular", {"count": len(blocks)}
 
 
-def diagnose(records, targets, interval):
+def diagnose(records, targets, interval, lang="zh"):
     keys = list(targets.keys())
     wan_keys = [k for k in keys if k != "gw"]
     series = {k: [(t, v) for t, kk, v in records if kk == k] for k in keys}
@@ -180,10 +207,15 @@ def diagnose(records, targets, interval):
                       GW_SPIKE_MS if k == "gw" else WAN_SPIKE_MS)
             for k in keys}
     meta = {}
+    en = lang == "en"
 
     enough_wan = any(stat[k]["n"] >= 30 for k in wan_keys)
     if "gw" not in stat or stat["gw"]["n"] == 0 or not enough_wan:
-        verdict = ("数据太少", "记录时间太短，建议至少跑 10 分钟，最好在平时会卡的时段跑 30–60 分钟。")
+        verdict = (("Not enough data yet",
+                     "The recording is too short. Run it for at least 10 minutes — ideally 30–60 minutes "
+                     "during a time when it usually lags.")
+                    if en else
+                    ("数据太少", "记录时间太短，建议至少跑 10 分钟，最好在平时会卡的时段跑 30–60 分钟。"))
         return stat, verdict, meta
 
     # 1) 先看内网/路由器
@@ -192,14 +224,28 @@ def diagnose(records, targets, interval):
         pattern, detail = classify_pattern(gw_events, interval)
         meta = {"scope": "gw", "pattern": pattern, "detail": detail}
         if pattern == "periodic":
-            verdict = ("问题很可能是某个后台任务，而不是网络线路",
-                       f"路由器延迟每约 {detail['period']:.0f} 秒规律性跳高（共 {detail['count']} 次）。"
-                       "这种精准的固定周期通常是设备后台在发起流量（例如 AirDrop、云同步、自动备份），"
-                       "可以逐个关掉可疑的后台功能后重跑一次确认。")
+            if en:
+                verdict = ("Likely a background task, not the network line",
+                           f"Router latency spikes on a regular ~{detail['period']:.0f}s cycle "
+                           f"({detail['count']} times). That precise a period is usually a device background task "
+                           "kicking off traffic (AirDrop, cloud sync, auto-backup) — try turning off suspects "
+                           "one at a time and re-run to confirm.")
+            else:
+                verdict = ("问题很可能是某个后台任务，而不是网络线路",
+                           f"路由器延迟每约 {detail['period']:.0f} 秒规律性跳高（共 {detail['count']} 次）。"
+                           "这种精准的固定周期通常是设备后台在发起流量（例如 AirDrop、云同步、自动备份），"
+                           "可以逐个关掉可疑的后台功能后重跑一次确认。")
         else:
-            verdict = ("问题在家里 WiFi / 内网",
-                       f"连家里路由器都出现了延迟飙高或丢包（异常 {stat['gw']['spikes']} 次）。"
-                       "优先处理 WiFi：改连 5G 频段、靠近路由器、插网线对比，或考虑更换路由器/组 Mesh。")
+            if en:
+                verdict = ("The fault is your home WiFi / LAN",
+                           f"Even the router itself shows latency spikes or packet loss "
+                           f"({stat['gw']['spikes']} times). Start with WiFi: switch to the 5GHz band, move "
+                           "closer to the router, compare with a wired connection, or consider a new "
+                           "router / mesh setup.")
+            else:
+                verdict = ("问题在家里 WiFi / 内网",
+                           f"连家里路由器都出现了延迟飙高或丢包（异常 {stat['gw']['spikes']} 次）。"
+                           "优先处理 WiFi：改连 5G 频段、靠近路由器、插网线对比，或考虑更换路由器/组 Mesh。")
         return stat, verdict, meta
 
     # 2) 路由器正常，看外网——多目标交叉验证，避免误判成"某个服务器自己不回应"
@@ -211,10 +257,12 @@ def diagnose(records, targets, interval):
         confirmed = [t for t in wan_event_sets[base_key]
                      if all(any(abs(t - t2) <= 1.5 for t2 in evs)
                             for k2, evs in wan_event_sets.items() if k2 != base_key)]
-        confidence = "高（多个独立外网目标同时复现）"
+        confidence = ("high — reproduced on multiple independent internet targets" if en
+                      else "高（多个独立外网目标同时复现）")
     elif len(wan_event_sets) == 1:
         confirmed = list(wan_event_sets.values())[0]
-        confidence = "中（只有一个外网目标存活，建议加第二个目标交叉验证）"
+        confidence = ("medium — only one internet target survived precheck; add a second one to cross-validate"
+                      if en else "中（只有一个外网目标存活，建议加第二个目标交叉验证）")
     else:
         confirmed, confidence = [], "—"
 
@@ -223,22 +271,49 @@ def diagnose(records, targets, interval):
         pattern, detail = classify_pattern(confirmed, interval)
         meta = {"scope": "wan", "pattern": pattern, "detail": detail, "confidence": confidence}
         if pattern == "continuous":
-            verdict = ("问题在光猫之后的外部线路",
-                       f"外网连续出现 {detail['count']} 段整体超时（平均约 {detail['avg_dur']:.0f} 秒，"
-                       f"最长 {detail['max_dur']:.0f} 秒），期间路由器段始终正常。置信度：{confidence}。"
-                       "这种整段掉线多是光猫拨号反复重连或运营商线路波动，可以把这份报告拿去找运营商报修。")
+            if en:
+                verdict = ("The fault is past your modem",
+                           f"The internet target dropped out completely {detail['count']} times (about "
+                           f"{detail['avg_dur']:.0f}s each, longest {detail['max_dur']:.0f}s) while the router "
+                           f"stayed normal throughout. Confidence: {confidence}. This kind of full dropout is "
+                           "usually the modem's connection redialing or an ISP line issue — take this report "
+                           "to your ISP.")
+            else:
+                verdict = ("问题在光猫之后的外部线路",
+                           f"外网连续出现 {detail['count']} 段整体超时（平均约 {detail['avg_dur']:.0f} 秒，"
+                           f"最长 {detail['max_dur']:.0f} 秒），期间路由器段始终正常。置信度：{confidence}。"
+                           "这种整段掉线多是光猫拨号反复重连或运营商线路波动，可以把这份报告拿去找运营商报修。")
         elif pattern == "periodic":
-            verdict = ("外网延迟呈规律性波动",
-                       f"外网每约 {detail['period']:.0f} 秒出现一次卡顿（共 {detail['count']} 次）。置信度：{confidence}。"
-                       "较少见，可能是路由器 QoS 策略、定时任务或运营商限速触发，建议结合具体时间点排查。")
+            if en:
+                verdict = ("Internet latency fluctuates on a regular cycle",
+                           f"The internet target lags about once every {detail['period']:.0f}s "
+                           f"({detail['count']} times). Confidence: {confidence}. Less common — could be "
+                           "router QoS, a scheduled task, or ISP throttling; worth checking against the exact "
+                           "times it happened.")
+            else:
+                verdict = ("外网延迟呈规律性波动",
+                           f"外网每约 {detail['period']:.0f} 秒出现一次卡顿（共 {detail['count']} 次）。置信度：{confidence}。"
+                           "较少见，可能是路由器 QoS 策略、定时任务或运营商限速触发，建议结合具体时间点排查。")
         else:
-            verdict = ("问题在光猫之后的外部线路",
-                       f"路由器一直稳定，但外网出现 {len(confirmed)} 次卡顿，暂未看出固定规律。置信度：{confidence}。"
-                       "如果集中在有人下载/看视频的时段，开路由器 QoS；如果反复出现且与家里用网无关，可拿这份报告找运营商报修。")
+            if en:
+                verdict = ("The fault is past your modem",
+                           f"The router stayed stable, but the internet target lagged {len(confirmed)} times "
+                           f"with no fixed pattern yet. Confidence: {confidence}. If it clusters around "
+                           "downloads/streaming, enable router QoS; if it keeps happening independent of usage, "
+                           "take this report to your ISP.")
+            else:
+                verdict = ("问题在光猫之后的外部线路",
+                           f"路由器一直稳定，但外网出现 {len(confirmed)} 次卡顿，暂未看出固定规律。置信度：{confidence}。"
+                           "如果集中在有人下载/看视频的时段，开路由器 QoS；如果反复出现且与家里用网无关，可拿这份报告找运营商报修。")
         return stat, verdict, meta
 
-    verdict = ("这段时间网络稳定",
-               "记录期间没有抓到明显卡顿（或未能在多个外网目标间交叉确认）。卡顿是偶发的，建议在玩游戏、刷视频卡的时段再跑一次。")
+    verdict = (("The network was stable during this run",
+                 "No clear lag was caught during recording (or it couldn't be cross-confirmed across multiple "
+                 "internet targets). Lag like this tends to be intermittent — try running it again during a "
+                 "time when it's actually happening (gaming, streaming, etc.).")
+                if en else
+                ("这段时间网络稳定",
+                 "记录期间没有抓到明显卡顿（或未能在多个外网目标间交叉确认）。卡顿是偶发的，建议在玩游戏、刷视频卡的时段再跑一次。"))
     return stat, verdict, meta
 
 
@@ -248,8 +323,46 @@ def fmt(v, suffix=" ms"):
     return "—" if v is None else f"{v:.1f}{suffix}"
 
 
-def build_report(records, targets, names, interval, started, path):
-    stat, verdict, meta = diagnose(records, targets, interval)
+REPORT_STRINGS = {
+    "zh": {
+        "html_lang": "zh-CN",
+        "title": "网络监测报告",
+        "h1": "家庭网络监测报告",
+        "sub": "开始于 {start} · 共记录 {dur:.1f} 分钟 · {events}",
+        "legend_bad": "顶部红点 = 超时丢包",
+        "legend_spike": "虚线 = {ms}ms 卡顿线",
+        "chart_note": "怎么看：所有线都同时跳高 → 问题在家里 WiFi/内网；只有外网线跳高、路由器线平稳 → 问题在光猫之后的外部线路；"
+                       "只有一个外网目标单独跳高 → 可能是那个目标自己不稳定，不代表你家线路有问题。",
+        "th": ["目标", "包数", "丢包率", "平均", "中位数", "95%", "最高", "异常次数"],
+        "table_note": "异常次数：路由器 &gt; {gw}ms 或超时；外网 &gt; {wan}ms 或超时。"
+                       "“95%”表示 95% 的包都比这个值快，最能反映平时体验。",
+        "timeout": "超时",
+        "wan_samples": "外网卡顿样本 {n} 次",
+        "confirmed_events": "，判定用到 {n} 个确认事件",
+    },
+    "en": {
+        "html_lang": "en",
+        "title": "Network Monitoring Report",
+        "h1": "Home Network Monitoring Report",
+        "sub": "Started {start} · Recorded {dur:.1f} min · {events}",
+        "legend_bad": "Top red dot = timeout / packet loss",
+        "legend_spike": "Dashed line = {ms}ms lag threshold",
+        "chart_note": "How to read this: all lines spike together → the fault is your home WiFi/LAN; only the "
+                       "internet line spikes while the router stays flat → the fault is past your modem; only "
+                       "one internet target spikes alone → that target itself may be unstable, not your home line.",
+        "th": ["Target", "Packets", "Loss", "Avg", "Median", "95%", "Max", "Spikes"],
+        "table_note": "Spikes: router &gt; {gw}ms or timeout; internet &gt; {wan}ms or timeout. \"95%\" means "
+                       "95% of packets were faster than this — the best reflection of everyday experience.",
+        "timeout": "timeout",
+        "wan_samples": "{n} internet lag samples",
+        "confirmed_events": ", {n} confirmed events used for the verdict",
+    },
+}
+
+
+def build_report(records, targets, names, interval, started, path, lang="zh"):
+    S = REPORT_STRINGS.get(lang, REPORT_STRINGS["zh"])
+    stat, verdict, meta = diagnose(records, targets, interval, lang)
     order = [k for k in ("gw", *sorted(k for k in targets if k != "gw")) if k in targets]
 
     color_of = {"gw": "--gw"}
@@ -288,20 +401,29 @@ def build_report(records, targets, names, interval, started, path):
 
     n_wan_events = sum(1 for t, k, v in records
                        if k != "gw" and (v is None or v > WAN_SPIKE_MS))
-    events_note = f"外网卡顿样本 {n_wan_events} 次"
+    events_note = S["wan_samples"].format(n=n_wan_events)
     if meta.get("scope") == "wan" and meta.get("pattern") in ("continuous", "periodic", "irregular"):
-        events_note += f"，判定用到 {meta['detail'].get('count', '-')} 个确认事件"
+        events_note += S["confirmed_events"].format(n=meta["detail"].get("count", "-"))
+
+    thead = "".join(f"<th>{html.escape(h)}</th>" for h in S["th"])
+    sub_line = S["sub"].format(start=started.strftime("%Y-%m-%d %H:%M"), dur=dur_min, events=events_note)
 
     page = (TEMPLATE
-            .replace("__START__", started.strftime("%Y-%m-%d %H:%M"))
-            .replace("__DUR__", f"{dur_min:.1f}")
+            .replace("__HTML_LANG__", S["html_lang"])
+            .replace("__REPORT_TITLE__", html.escape(S["title"]))
+            .replace("__REPORT_H1__", html.escape(S["h1"]))
+            .replace("__SUB__", html.escape(sub_line))
             .replace("__VERDICT_T__", html.escape(verdict[0]))
             .replace("__VERDICT_D__", html.escape(verdict[1]))
             .replace("__TABLE__", table)
             .replace("__LEGEND__", legend)
-            .replace("__GWSPIKE__", str(GW_SPIKE_MS))
+            .replace("__LEGEND_BAD__", html.escape(S["legend_bad"]))
+            .replace("__LEGEND_SPIKE__", html.escape(S["legend_spike"].format(ms=WAN_SPIKE_MS)))
+            .replace("__CHART_NOTE__", html.escape(S["chart_note"]))
+            .replace("__THEAD__", thead)
+            .replace("__TABLE_NOTE__", S["table_note"].format(gw=GW_SPIKE_MS, wan=WAN_SPIKE_MS))
+            .replace("__TIMEOUT_LABEL__", html.escape(S["timeout"]))
             .replace("__WANSPIKE__", str(WAN_SPIKE_MS))
-            .replace("__EVENTS__", events_note)
             .replace("__DATA__", json.dumps(data, ensure_ascii=False)))
     with open(path, "w", encoding="utf-8") as f:
         f.write(page)
@@ -309,9 +431,9 @@ def build_report(records, targets, names, interval, started, path):
 
 
 TEMPLATE = r"""<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8">
+<html lang="__HTML_LANG__"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>网络监测报告</title>
+<title>__REPORT_TITLE__</title>
 <style>
 :root{--bg:#f6f5f2;--card:#fff;--fg:#1d1d1f;--mute:#6e6e73;--line:#e3e1dc;
 --gw:#2f6fde;--wan:#e8742a;--wan2:#8e44ad;--wan3:#16a085;--wan4:#b8860b;
@@ -342,29 +464,30 @@ canvas{width:100%;height:380px;display:block}
 border-radius:8px;padding:6px 10px;font-size:12px;display:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .note{font-size:13px;color:var(--mute);margin-top:10px}
 </style></head><body><main>
-<h1>家庭网络监测报告</h1>
-<div class="sub">开始于 __START__ · 共记录 __DUR__ 分钟 · __EVENTS__</div>
+<h1>__REPORT_H1__</h1>
+<div class="sub">__SUB__</div>
 
 <div class="card verdict"><h2>__VERDICT_T__</h2><p>__VERDICT_D__</p></div>
 
 <div class="card">
 <div class="legend">
 __LEGEND__
-<span><i style="background:var(--bad)"></i>顶部红点 = 超时丢包</span>
-<span>虚线 = __WANSPIKE__ms 卡顿线</span>
+<span><i style="background:var(--bad)"></i>__LEGEND_BAD__</span>
+<span>__LEGEND_SPIKE__</span>
 </div>
 <div id="box"><canvas id="c"></canvas><div id="tip"></div></div>
-<div class="note">怎么看：所有线都同时跳高 → 问题在家里 WiFi/内网；只有外网线跳高、路由器线平稳 → 问题在光猫之后的外部线路；只有一个外网目标单独跳高 → 可能是那个目标自己不稳定，不代表你家线路有问题。</div>
+<div class="note">__CHART_NOTE__</div>
 </div>
 
 <div class="card wrap">
-<table><thead><tr><th>目标</th><th>包数</th><th>丢包率</th><th>平均</th><th>中位数</th><th>95%</th><th>最高</th><th>异常次数</th></tr></thead>
+<table><thead><tr>__THEAD__</tr></thead>
 <tbody>__TABLE__</tbody></table>
-<div class="note">异常次数：路由器 &gt; __GWSPIKE__ms 或超时；外网 &gt; __WANSPIKE__ms 或超时。“95%”表示 95% 的包都比这个值快，最能反映平时体验。</div>
+<div class="note">__TABLE_NOTE__</div>
 </div>
 </main>
 <script>
 const D = __DATA__;
+const TIMEOUT_LABEL = "__TIMEOUT_LABEL__";
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const tip = document.getElementById('tip'), box = document.getElementById('box');
 const pad = {l:46, r:14, t:18, b:28};
@@ -437,7 +560,7 @@ cv.addEventListener('mousemove', e => {
   const {W, T} = geom();
   if (x < pad.l || x > W - pad.r){ tip.style.display='none'; hoverT=null; draw(); return; }
   hoverT = T(x);
-  const f = p => !p ? '—' : (p[1]===null ? '<b style="color:var(--bad)">超时</b>' : p[1]+' ms');
+  const f = p => !p ? '—' : (p[1]===null ? `<b style="color:var(--bad)">${TIMEOUT_LABEL}</b>` : p[1]+' ms');
   let lines = `<b>${hhmm(hoverT)}</b><br>`;
   for (const k of D.order){
     lines += `${D.series[k].name}：${f(nearest(D.series[k].points, hoverT))}<br>`;
@@ -458,39 +581,94 @@ draw();
 
 # ---------------------------------------------------------------- 主程序
 
-def color(v, spike):
+CLI_STRINGS = {
+    "zh": {
+        "desc": "同时监测路由器和多个外网目标的延迟，生成对比报告",
+        "help_gw": "路由器地址（默认自动检测）",
+        "help_wan": "外网目标，可给多个用空格分开，默认 {default}（用两家独立 DNS 便于交叉验证）",
+        "help_minutes": "运行分钟数，0 = 一直跑到 Ctrl+C",
+        "help_interval": "ping 间隔秒数（默认 1）",
+        "help_timeout": "单包超时毫秒（默认 2000）",
+        "help_lang": "报告和界面语言：zh 或 en（默认 zh）",
+        "prechecking": "预检目标（每个测 2 次）...",
+        "no_wan": "所有外网目标都不可用，无法继续监测。换个 --wan 地址试试。",
+        "started": "开始监测  {targets}",
+        "saving_to": "数据保存到：{outdir}",
+        "ctrl_c": "按 Ctrl+C 结束并生成报告",
+        "auto_stop": "（或 {m:g} 分钟后自动结束）",
+        "recorded": "已记录 {m}分{s:02d}秒",
+        "wan_spikes": "外网卡顿 {n} 次",
+        "no_records": "没有记录到数据。",
+        "loss_avg_max": "丢包 {loss:.1f}%  平均 {avg}  最高 {max}",
+        "verdict_label": "判断：{v}",
+        "report_label": "报告：{path}",
+        "csv_header": ["时间", "目标", "地址", "延迟ms（空=超时）"],
+        "timeout": " 超时  ",
+    },
+    "en": {
+        "desc": "Monitor router and internet target latency at the same time, generate a comparison report",
+        "help_gw": "router address (auto-detected by default)",
+        "help_wan": "internet targets, space-separated, default {default} (two independent DNS servers for cross-validation)",
+        "help_minutes": "minutes to run, 0 = run until Ctrl+C",
+        "help_interval": "ping interval in seconds (default 1)",
+        "help_timeout": "per-packet timeout in ms (default 2000)",
+        "help_lang": "report/UI language: zh or en (default zh)",
+        "prechecking": "Prechecking targets (2 pings each)...",
+        "no_wan": "None of the internet targets are reachable, can't continue. Try a different --wan address.",
+        "started": "Monitoring started  {targets}",
+        "saving_to": "Saving data to: {outdir}",
+        "ctrl_c": "Press Ctrl+C to stop and generate a report",
+        "auto_stop": " (or after {m:g} minutes)",
+        "recorded": "Recorded {m}m{s:02d}s",
+        "wan_spikes": "{n} internet lag events",
+        "no_records": "No data recorded.",
+        "loss_avg_max": "loss {loss:.1f}%  avg {avg}  max {max}",
+        "verdict_label": "Verdict: {v}",
+        "report_label": "Report: {path}",
+        "csv_header": ["time", "target", "address", "latency_ms (blank = timeout)"],
+        "timeout": " timeout ",
+    },
+}
+
+
+def color(v, spike, timeout_label):
     if v is None:
-        return "\033[31m 超时  \033[0m"
+        return f"\033[31m{timeout_label}\033[0m"
     s = f"{v:6.1f}ms"
     return f"\033[31m{s}\033[0m" if v > spike else s
 
 
 def main():
-    ap = argparse.ArgumentParser(description="同时监测路由器和多个外网目标的延迟，生成对比报告")
-    ap.add_argument("--gw", help="路由器地址（默认自动检测）")
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang", default="zh", choices=["zh", "en"])
+    pre_args, _ = pre.parse_known_args()
+    L = CLI_STRINGS.get(pre_args.lang, CLI_STRINGS["zh"])
+
+    ap = argparse.ArgumentParser(description=L["desc"])
+    ap.add_argument("--gw", help=L["help_gw"])
     ap.add_argument("--wan", nargs="+", default=DEFAULT_WAN,
-                     help=f"外网目标，可给多个用空格分开，默认 {' '.join(DEFAULT_WAN)}（用两家独立 DNS 便于交叉验证）")
-    ap.add_argument("-m", "--minutes", type=float, default=0, help="运行分钟数，0 = 一直跑到 Ctrl+C")
-    ap.add_argument("-i", "--interval", type=float, default=1.0, help="ping 间隔秒数（默认 1）")
-    ap.add_argument("--timeout", type=int, default=2000, help="单包超时毫秒（默认 2000）")
+                     help=L["help_wan"].format(default=" ".join(DEFAULT_WAN)))
+    ap.add_argument("-m", "--minutes", type=float, default=0, help=L["help_minutes"])
+    ap.add_argument("-i", "--interval", type=float, default=1.0, help=L["help_interval"])
+    ap.add_argument("--timeout", type=int, default=2000, help=L["help_timeout"])
+    ap.add_argument("--lang", default="zh", choices=["zh", "en"], help=L["help_lang"])
     args = ap.parse_args()
+    lang = args.lang
+    L = CLI_STRINGS.get(lang, CLI_STRINGS["zh"])
 
     raw_targets = {"gw": args.gw or detect_gateway()}
     for i, host in enumerate(dict.fromkeys(args.wan), 1):  # 去重但保序
         raw_targets[f"wan{i}"] = host
 
-    print(f"预检目标（每个测 2 次）...")
-    targets, notes = precheck(raw_targets, min(args.timeout, 1000))
+    print(L["prechecking"])
+    targets, notes = precheck(raw_targets, min(args.timeout, 1000), lang)
     for n in notes:
         print(n)
     if not any(k != "gw" for k in targets):
-        print("所有外网目标都不可用，无法继续监测。换个 --wan 地址试试。")
+        print(L["no_wan"])
         sys.exit(1)
 
-    names = {"gw": "路由器（家里内网）"}
-    for k, host in targets.items():
-        if k != "gw":
-            names[k] = f"外网 {wan_label(host)}"
+    names = make_names(targets, lang)
 
     started = datetime.now()
     outdir = os.path.join(os.getcwd(), "runs", "netdoctor_" + started.strftime("%Y%m%d_%H%M"))
@@ -498,9 +676,9 @@ def main():
     csv_path = os.path.join(outdir, "data.csv")
     report_path = os.path.join(outdir, "report.html")
 
-    print(f"开始监测  {' | '.join(f'{names[k]}: {targets[k]}' for k in targets)}")
-    print(f"数据保存到：{outdir}")
-    print("按 Ctrl+C 结束并生成报告" + (f"（或 {args.minutes:g} 分钟后自动结束）" if args.minutes else ""))
+    print(L["started"].format(targets=" | ".join(f"{names[k]}: {targets[k]}" for k in targets)))
+    print(L["saving_to"].format(outdir=outdir))
+    print(L["ctrl_c"] + (L["auto_stop"].format(m=args.minutes) if args.minutes else ""))
     print("-" * 64)
 
     records, latest, lock, stop = [], {}, threading.Lock(), threading.Event()
@@ -515,7 +693,7 @@ def main():
     f = open(csv_path, "w", newline="", encoding="utf-8")
     # 显式指定 \n 行尾，避免默认 \r\n 导致命令行按行筛选（grep 等）漏掉超时记录
     w = csv.writer(f, lineterminator="\n")
-    w.writerow(["时间", "目标", "地址", "延迟ms（空=超时）"])
+    w.writerow(L["csv_header"])
     order = list(targets.keys())
     try:
         while True:
@@ -532,12 +710,13 @@ def main():
             f.flush()
             elapsed = time.time() - t_start
             status = "  ".join(
-                f"{names[k].replace('外网 ', '')} {color(cur[k], GW_SPIKE_MS if k == 'gw' else WAN_SPIKE_MS)}"
+                f"{names[k].replace('外网 ', '').replace('Internet — ', '')} "
+                f"{color(cur[k], GW_SPIKE_MS if k == 'gw' else WAN_SPIKE_MS, L['timeout'])}"
                 for k in order
             )
-            sys.stdout.write(f"\r{datetime.now():%H:%M:%S}  {status}   "
-                             f"已记录 {int(elapsed // 60)}分{int(elapsed % 60):02d}秒   "
-                             f"外网卡顿 {wan_bad} 次   ")
+            recorded = L["recorded"].format(m=int(elapsed // 60), s=int(elapsed % 60))
+            sys.stdout.write(f"\r{datetime.now():%H:%M:%S}  {status}   {recorded}   "
+                             f"{L['wan_spikes'].format(n=wan_bad)}   ")
             sys.stdout.flush()
             if args.minutes and elapsed >= args.minutes * 60:
                 break
@@ -555,14 +734,14 @@ def main():
 
     print("\n" + "-" * 64)
     if not records:
-        print("没有记录到数据。")
+        print(L["no_records"])
         return
-    stat, verdict = build_report(records, targets, names, args.interval, started, report_path)
+    stat, verdict = build_report(records, targets, names, args.interval, started, report_path, lang)
     for k in order:
         s = stat[k]
-        print(f"{names[k]}：丢包 {s['loss']:.1f}%  平均 {fmt(s['avg'])}  最高 {fmt(s['max'])}")
-    print(f"判断：{verdict[0]}")
-    print(f"报告：{report_path}")
+        print(f"{names[k]}：{L['loss_avg_max'].format(loss=s['loss'], avg=fmt(s['avg']), max=fmt(s['max']))}")
+    print(L["verdict_label"].format(v=verdict[0]))
+    print(L["report_label"].format(path=report_path))
     try:
         subprocess.run(["open", report_path], check=False)
     except Exception:

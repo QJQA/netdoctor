@@ -27,6 +27,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(BASE_DIR, "index.html")
 OUTDIR_RE = re.compile(r"^runs/netdoctor_\d{8}_\d{6}/(report\.html|data\.csv)$")
 
+SERVER_STRINGS = {
+    "zh": {
+        "already_running": "已经在监测中，请先停止当前监测",
+        "all_unreachable": "所有外网目标都不可用（预检 2 次都不回应），换一个地址试试",
+        "not_running": "当前没有在监测",
+        "no_records": "没有记录到数据",
+    },
+    "en": {
+        "already_running": "Already monitoring — stop the current run first",
+        "all_unreachable": "None of the internet targets are reachable (no response after 2 precheck pings) — try a different address",
+        "not_running": "Not currently monitoring",
+        "no_records": "No data was recorded",
+    },
+}
+
 
 class Monitor:
     """封装一次监测的生命周期：开始 → 持续记录 → 停止并出报告。"""
@@ -48,25 +63,24 @@ class Monitor:
         self.interval = 1.0
         self.started = None
         self.outdir = None
+        self.lang = "zh"
 
-    def start(self, gw, wan_list, interval):
+    def start(self, gw, wan_list, interval, lang="zh"):
         with self.lock:
             if self.running:
-                raise RuntimeError("已经在监测中，请先停止当前监测")
+                raise RuntimeError(SERVER_STRINGS[lang]["already_running"])
             self._reset_locked()
+            self.lang = lang
 
             raw_targets = {"gw": gw or nw.detect_gateway()}
             for i, host in enumerate(dict.fromkeys(wan_list), 1):
                 raw_targets[f"wan{i}"] = host
 
-            targets, notes = nw.precheck(raw_targets, 1000)
+            targets, notes = nw.precheck(raw_targets, 1000, lang)
             if not any(k != "gw" for k in targets):
-                raise RuntimeError("所有外网目标都不可用（预检 2 次都不回应），换一个地址试试")
+                raise RuntimeError(SERVER_STRINGS[lang]["all_unreachable"])
 
-            names = {"gw": "路由器（家里内网）"}
-            for k, host in targets.items():
-                if k != "gw":
-                    names[k] = f"外网 {nw.wan_label(host)}"
+            names = nw.make_names(targets, lang)
 
             self.targets = targets
             self.names = names
@@ -110,10 +124,10 @@ class Monitor:
     def stop(self):
         with self.lock:
             if not self.running:
-                raise RuntimeError("当前没有在监测")
+                raise RuntimeError(SERVER_STRINGS[self.lang]["not_running"])
             self.stop_event.set()
             threads, targets, names = self.threads, self.targets, self.names
-            interval, started, outdir = self.interval, self.started, self.outdir
+            interval, started, outdir, lang = self.interval, self.started, self.outdir, self.lang
         for t in threads:
             t.join(timeout=3)
         with self.rec_lock:
@@ -122,18 +136,18 @@ class Monitor:
             self.running = False
 
         if not records:
-            raise RuntimeError("没有记录到数据")
+            raise RuntimeError(SERVER_STRINGS[lang]["no_records"])
 
         csv_path = os.path.join(outdir, "data.csv")
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f, lineterminator="\n")
-            w.writerow(["时间", "目标", "地址", "延迟ms（空=超时）"])
+            w.writerow(nw.CLI_STRINGS[lang]["csv_header"])
             for ts, k, v in records:
                 w.writerow([datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S"),
                             names[k], targets[k], "" if v is None else v])
 
         report_path = os.path.join(outdir, "report.html")
-        stat, verdict = nw.build_report(records, targets, names, interval, started, report_path)
+        stat, verdict = nw.build_report(records, targets, names, interval, started, report_path, lang)
         rel = os.path.relpath(report_path, os.getcwd()).replace(os.sep, "/")
         return {"stat": stat, "verdict": verdict, "report_url": "/" + rel}
 
@@ -202,7 +216,8 @@ class Handler(BaseHTTPRequestHandler):
                 wan_raw = (payload.get("wan") or "").strip()
                 wan_list = [w for w in re.split(r"[,\s]+", wan_raw) if w] or nw.DEFAULT_WAN
                 interval = float(payload.get("interval") or 1.0)
-                self._json(200, monitor.start(gw, wan_list, interval))
+                lang = payload.get("lang") if payload.get("lang") in ("zh", "en") else "zh"
+                self._json(200, monitor.start(gw, wan_list, interval, lang))
             except Exception as e:
                 self._json(400, {"error": str(e)})
         elif parsed.path == "/api/stop":

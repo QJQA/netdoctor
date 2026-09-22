@@ -165,22 +165,20 @@ footer a{text-decoration:none;color:var(--accent)}
     <h2 data-i18n="how_title">同时测两段，哪段先出问题就卡在哪段</h2>
     <p class="section-lede" data-i18n="how_lede">大多数测速工具只告诉你带宽多少，测不出偶发掉线。Network Doctor 把链路分成两段同时监测，一旦某段出现异常，立刻能定位到具体是哪一段。</p>
     <div class="flow">
-      <div class="flow-icon" style="grid-column:1">
+      <div class="flow-icon active" style="grid-column:1;--dot:var(--wan2)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M2 19h20" stroke-linecap="round"/></svg>
       </div>
       <div class="flow-arrow" style="grid-column:2"></div>
       <div class="flow-icon active" style="grid-column:3;--dot:var(--gw)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8 15a6 6 0 0 1 8 0"/><circle cx="12" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
-        <span class="flow-tag" style="background:var(--gw)">①</span>
       </div>
       <div class="flow-arrow" style="grid-column:4"></div>
       <div class="flow-icon active" style="grid-column:5;--dot:var(--wan)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 4 5.7 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.7-4-9s1.5-6.5 4-9z"/></svg>
-        <span class="flow-tag" style="background:var(--wan)">②</span>
       </div>
       <div class="flow-label" style="grid-column:1" data-i18n="flow_device">你的设备</div>
       <div class="flow-label" style="grid-column:3" data-i18n="flow_router">路由器</div>
-      <div class="flow-label" style="grid-column:5" data-i18n="flow_wan">外网</div>
+      <div class="flow-label" style="grid-column:5" data-i18n="flow_wan">互联网</div>
     </div>
   </section>
 
@@ -291,7 +289,7 @@ const I18N = {
     how_eyebrow: "原理",
     how_title: "同时测两段，哪段先出问题就卡在哪段",
     how_lede: "大多数测速工具只告诉你带宽多少，测不出偶发掉线。Network Doctor 把链路分成两段同时监测，一旦某段出现异常，立刻能定位到具体是哪一段。",
-    flow_device: "你的设备", flow_router: "路由器", flow_wan: "外网",
+    flow_device: "你的设备", flow_router: "路由器", flow_wan: "互联网",
     setup_eyebrow: "使用界面",
     setup_title: "三步配置，不用碰命令行",
     setup_1_b: "路由器地址", setup_1_p: "留空自动检测，用来判断是不是家里 WiFi 的问题。",

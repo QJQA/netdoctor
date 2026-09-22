@@ -26,9 +26,13 @@ h1{font-size:22px;margin:0;letter-spacing:.2px}
 border:1px solid var(--line);border-radius:20px;padding:2px 9px;letter-spacing:.2px}
 .header-right{text-align:right}
 .sub{color:var(--mute);font-size:13px;margin:0 0 8px}
-.status-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:0}
+.status-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:0;align-items:center}
 .status-row .tag{display:flex;align-items:center;gap:5px}
 .status-row .tag i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.lang-toggle{display:flex;border:1px solid var(--line);border-radius:20px;padding:2px;background:var(--card)}
+.lang-toggle button{border:none;background:transparent;padding:4px 11px;border-radius:16px;font-size:11.5px;
+font-weight:600;cursor:pointer;color:var(--mute)}
+.lang-toggle button.active{background:var(--accent);color:#fff}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:16px;
 box-shadow:0 1px 2px rgba(0,0,0,.02)}
 label{display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px}
@@ -112,11 +116,15 @@ th{color:var(--mute);font-weight:500}
     <span class="tag">宽带故障检测助手</span>
   </div>
   <div class="header-right">
-    <div class="sub">同时测路由器和外网，判断卡顿是内网、外部线路，还是某个后台任务。</div>
+    <div class="sub" data-i18n="sub">同时测路由器和外网，判断卡顿是内网、外部线路，还是某个后台任务。</div>
     <div class="status-row">
-      <span class="tag"><i></i>本地运行</span>
-      <span class="tag">数据不上传</span>
-      <span class="tag">无需注册</span>
+      <div class="lang-toggle">
+        <button data-lang="zh" onclick="setLang('zh')">中文</button>
+        <button data-lang="en" onclick="setLang('en')">EN</button>
+      </div>
+      <span class="tag"><i></i><span data-i18n="tag_local">本地运行</span></span>
+      <span class="tag" data-i18n="tag_nodata">数据不上传</span>
+      <span class="tag" data-i18n="tag_noreg">无需注册</span>
     </div>
   </div>
 </div>
@@ -124,42 +132,40 @@ th{color:var(--mute);font-weight:500}
 <div id="errorBox" class="error hidden"></div>
 <div id="resumeBanner" class="info hidden">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <span>已自动接上之前的监测进度。</span>
+  <span data-i18n="resume_banner">已自动接上之前的监测进度。</span>
 </div>
 
-<div id="loadingCard" class="card loading"><i></i>正在连接本地服务…</div>
+<div id="loadingCard" class="card loading"><i></i><span data-i18n="connecting">正在连接本地服务…</span></div>
 
 <div id="configCard" class="card hidden">
   <div class="flow">
-    <div class="flow-icon-wrap" style="grid-column:1;grid-row:1">
+    <div class="flow-icon-wrap active" style="grid-column:1;grid-row:1;--dot:var(--wan2)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M2 19h20" stroke-linecap="round"/></svg>
     </div>
     <div class="flow-arrow" style="grid-column:2;grid-row:1"></div>
     <div class="flow-icon-wrap active" style="grid-column:3;grid-row:1;--dot:var(--gw)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8 15a6 6 0 0 1 8 0"/><circle cx="12" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
-      <span class="flow-tag" style="background:var(--gw)">①</span>
     </div>
     <div class="flow-arrow" style="grid-column:4;grid-row:1"></div>
     <div class="flow-icon-wrap active" style="grid-column:5;grid-row:1;--dot:var(--wan)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 4 5.7 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.7-4-9s1.5-6.5 4-9z"/></svg>
-      <span class="flow-tag" style="background:var(--wan)">②</span>
     </div>
-    <div class="flow-label" style="grid-column:1;grid-row:2">你的设备</div>
-    <div class="flow-label" style="grid-column:3;grid-row:2">路由器</div>
-    <div class="flow-label" style="grid-column:5;grid-row:2">外网</div>
+    <div class="flow-label" style="grid-column:1;grid-row:2" data-i18n="flow_device">你的设备</div>
+    <div class="flow-label" style="grid-column:3;grid-row:2" data-i18n="flow_router">路由器</div>
+    <div class="flow-label" style="grid-column:5;grid-row:2" data-i18n="flow_wan">互联网</div>
   </div>
-  <p class="flow-caption">同时测两段——哪段先出问题，就卡在哪段。</p>
+  <p class="flow-caption" data-i18n="flow_caption">同时测两段——哪段先出问题，就卡在哪段。</p>
 
   <div class="section">
-    <div class="section-title"><span class="step-num" style="background:var(--gw)">1</span>路由器地址</div>
+    <div class="section-title"><span class="step-num" style="background:var(--gw)">1</span><span data-i18n="s1_title">路由器地址</span></div>
     <div class="section-body">
-      <input id="gw" placeholder="留空自动检测，例如 192.168.1.1">
-      <p class="hint">留空自动检测，用来看是不是家里 WiFi 的问题。</p>
+      <input id="gw" data-i18n-placeholder="gw_placeholder" placeholder="留空自动检测，例如 192.168.1.1">
+      <p class="hint" data-i18n="gw_hint">留空自动检测，用来看是不是家里 WiFi 的问题。</p>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title"><span class="step-num" style="background:var(--wan)">2</span>外网目标</div>
+    <div class="section-title"><span class="step-num" style="background:var(--wan)">2</span><span data-i18n="s2_title">外网目标</span></div>
     <div class="section-body">
       <div class="dual">
         <div>
@@ -171,7 +177,7 @@ th{color:var(--mute);font-weight:500}
           <p class="hint" id="wan2Hint">→ 腾讯DNS</p>
         </div>
       </div>
-      <p class="hint" style="margin-top:10px">两个目标要不相关，防止某一个自己抽风被误判。也可填网址，公共 DNS 更稳定。</p>
+      <p class="hint" style="margin-top:10px" data-i18n="s2_hint">两个目标要不相关，防止某一个自己抽风被误判。也可填网址，公共 DNS 更稳定。</p>
       <datalist id="dnsPresets">
         <option value="223.5.5.5" label="阿里DNS"></option>
         <option value="119.29.29.29" label="腾讯DNS"></option>
@@ -183,34 +189,34 @@ th{color:var(--mute);font-weight:500}
   </div>
 
   <div class="section">
-    <div class="section-title"><span class="step-num" style="background:var(--mute)">3</span>运行设置</div>
+    <div class="section-title"><span class="step-num" style="background:var(--mute)">3</span><span data-i18n="s3_title">运行设置</span></div>
     <div class="section-body">
       <div class="dual">
         <div>
-          <label>采样间隔</label>
+          <label data-i18n="interval_label">采样间隔</label>
           <select id="interval">
-            <option value="1">1 秒（推荐）</option>
-            <option value="2">2 秒</option>
+            <option value="1" data-i18n="interval_1">1 秒（推荐）</option>
+            <option value="2" data-i18n="interval_2">2 秒</option>
           </select>
-          <p class="hint">越短越容易抓到瞬间掉线。</p>
+          <p class="hint" data-i18n="interval_hint">越短越容易抓到瞬间掉线。</p>
         </div>
         <div>
-          <label>测试时长</label>
+          <label data-i18n="duration_label">测试时长</label>
           <select id="duration">
-            <option value="0">不限时（手动停止）</option>
-            <option value="5">5 分钟</option>
-            <option value="10">10 分钟</option>
-            <option value="20">20 分钟</option>
+            <option value="0" data-i18n="duration_0">不限时（手动停止）</option>
+            <option value="5" data-i18n="duration_5">5 分钟</option>
+            <option value="10" data-i18n="duration_10">10 分钟</option>
+            <option value="20" data-i18n="duration_20">20 分钟</option>
           </select>
-          <p class="hint" id="durationHint">到时间自动停止并生成报告。</p>
+          <p class="hint" id="durationHint" data-i18n="duration_hint">到时间自动停止并生成报告。</p>
         </div>
       </div>
     </div>
   </div>
 
   <div class="center">
-    <button class="primary" id="startBtn" onclick="startMonitor()">开始监测</button>
-    <p class="hint" style="margin-top:12px">建议至少测 10 分钟；偶发卡顿更久更好，可选"不限时"手动停止。</p>
+    <button class="primary" id="startBtn" onclick="startMonitor()" data-i18n="start_btn">开始监测</button>
+    <p class="hint" style="margin-top:12px" data-i18n="start_hint">建议至少测 10 分钟；偶发卡顿更久更好，可选"不限时"手动停止。</p>
   </div>
 </div>
 
@@ -219,35 +225,124 @@ th{color:var(--mute);font-weight:500}
 <div id="runningCard" class="card hidden">
   <div class="topline">
     <span><span id="elapsedText">已记录 0 分 00 秒</span><span id="autoStopText"></span></span>
-    <button class="danger" id="stopBtn" onclick="stopMonitor()">停止并生成报告</button>
+    <button class="danger" id="stopBtn" onclick="stopMonitor()" data-i18n="stop_btn">停止并生成报告</button>
   </div>
   <div class="badges" id="badges"></div>
   <div id="box"><canvas id="chart"></canvas><div id="tip"></div></div>
-  <p class="hint" style="margin-top:10px">可随时刷新页面，进度不会丢。</p>
+  <p class="hint" style="margin-top:10px" data-i18n="running_hint">可随时刷新页面，进度不会丢。</p>
 </div>
 
 <div id="resultCard" class="card verdict hidden">
   <h2 id="verdictTitle"></h2>
   <p id="verdictDesc"></p>
-  <table id="statTable"><thead><tr><th>目标</th><th>丢包率</th><th>平均</th><th>最高</th><th>异常次数</th></tr></thead><tbody></tbody></table>
+  <table id="statTable"><thead><tr>
+    <th data-i18n="th_target">目标</th><th data-i18n="th_loss">丢包率</th><th data-i18n="th_avg">平均</th><th data-i18n="th_max">最高</th><th data-i18n="th_spikes">异常次数</th>
+  </tr></thead><tbody></tbody></table>
   <div class="actions">
-    <a class="ghost" id="reportLink" href="#" target="_blank" style="text-decoration:none;padding:11px 20px;border:1px solid var(--line);border-radius:8px;color:var(--fg);font-weight:600;font-size:14px">查看完整报告 ↗</a>
-    <button class="ghost" onclick="resetUI()">再测一次</button>
+    <a class="ghost" id="reportLink" href="#" target="_blank" style="text-decoration:none;padding:11px 20px;border:1px solid var(--line);border-radius:8px;color:var(--fg);font-weight:600;font-size:14px" data-i18n="view_report">查看完整报告 ↗</a>
+    <button class="ghost" onclick="resetUI()" data-i18n="retest_btn">再测一次</button>
   </div>
 </div>
 
 <script>
 const COLOR_CYCLE = ['--wan','--wan2','--wan3','--wan4'];
 const KNOWN_HOSTS = {
-  '223.5.5.5': '阿里DNS', '119.29.29.29': '腾讯DNS', '114.114.114.114': '114DNS',
-  '8.8.8.8': 'Google DNS', '1.1.1.1': 'Cloudflare DNS'
+  '223.5.5.5': {zh:'阿里DNS', en:'Alibaba DNS'},
+  '119.29.29.29': {zh:'腾讯DNS', en:'Tencent DNS'},
+  '114.114.114.114': {zh:'114DNS', en:'114DNS'},
+  '8.8.8.8': {zh:'Google DNS', en:'Google DNS'},
+  '1.1.1.1': {zh:'Cloudflare DNS', en:'Cloudflare DNS'}
 };
+
+const I18N = {
+  zh: {
+    sub: "同时测路由器和外网，判断卡顿是内网、外部线路，还是某个后台任务。",
+    tag_local: "本地运行", tag_nodata: "数据不上传", tag_noreg: "无需注册",
+    resume_banner: "已自动接上之前的监测进度。",
+    connecting: "正在连接本地服务…",
+    flow_device: "你的设备", flow_router: "路由器", flow_wan: "互联网",
+    flow_caption: "同时测两段——哪段先出问题，就卡在哪段。",
+    s1_title: "路由器地址", gw_placeholder: "留空自动检测，例如 192.168.1.1",
+    gw_hint: "留空自动检测，用来看是不是家里 WiFi 的问题。",
+    s2_title: "外网目标",
+    s2_hint: "两个目标要不相关，防止某一个自己抽风被误判。也可填网址，公共 DNS 更稳定。",
+    s3_title: "运行设置",
+    interval_label: "采样间隔", interval_1: "1 秒（推荐）", interval_2: "2 秒",
+    interval_hint: "越短越容易抓到瞬间掉线。",
+    duration_label: "测试时长", duration_0: "不限时（手动停止）",
+    duration_5: "5 分钟", duration_10: "10 分钟", duration_20: "20 分钟",
+    duration_hint: "到时间自动停止并生成报告。",
+    start_btn: "开始监测",
+    start_hint: "建议至少测 10 分钟；偶发卡顿更久更好，可选\"不限时\"手动停止。",
+    stop_btn: "停止并生成报告",
+    running_hint: "可随时刷新页面，进度不会丢。",
+    th_target: "目标", th_loss: "丢包率", th_avg: "平均", th_max: "最高", th_spikes: "异常次数",
+    view_report: "查看完整报告 ↗", retest_btn: "再测一次",
+    custom_addr: "自定义地址（IP 或网址都行）",
+    start_failed: "启动失败", stop_failed: "停止失败：",
+    no_service: "无法连接本地服务：",
+    no_service_confirm: "无法连接本地服务，请确认 server.py 正在运行。",
+    timeout: "超时",
+    elapsed_fmt: (m, s) => `已记录 ${m} 分 ${String(s).padStart(2,'0')} 秒`,
+    autostop_fmt: (hhmm) => ` · 预计 ${hhmm} 自动停止`,
+  },
+  en: {
+    sub: "Tests your router and the internet at the same time, and tells you whether lag is your WiFi, an outside line, or a background task.",
+    tag_local: "Runs locally", tag_nodata: "No data uploaded", tag_noreg: "No signup",
+    resume_banner: "Reconnected to a monitoring run already in progress.",
+    connecting: "Connecting to the local service…",
+    flow_device: "Your device", flow_router: "Router", flow_wan: "Internet",
+    flow_caption: "Two segments, tested at once — whichever breaks first tells you where the fault is.",
+    s1_title: "Router address", gw_placeholder: "Auto-detect, e.g. 192.168.1.1",
+    gw_hint: "Leave blank to auto-detect — used to tell whether the issue is your own WiFi.",
+    s2_title: "Internet targets",
+    s2_hint: "The two targets should be unrelated, so one flaky server can't fool you. A hostname works too — public DNS servers are just more stable.",
+    s3_title: "Run settings",
+    interval_label: "Sampling interval", interval_1: "1 second (recommended)", interval_2: "2 seconds",
+    interval_hint: "Shorter catches brief drops more reliably.",
+    duration_label: "Test duration", duration_0: "Unlimited (stop manually)",
+    duration_5: "5 minutes", duration_10: "10 minutes", duration_20: "20 minutes",
+    duration_hint: "Stops automatically and generates a report when time's up.",
+    start_btn: "Start monitoring",
+    start_hint: "Run for at least 10 minutes; longer is better for intermittent issues — pick \"Unlimited\" and stop it yourself.",
+    stop_btn: "Stop and generate report",
+    running_hint: "Safe to refresh the page anytime — progress won't be lost.",
+    th_target: "Target", th_loss: "Loss", th_avg: "Avg", th_max: "Max", th_spikes: "Spikes",
+    view_report: "Full report ↗", retest_btn: "Run again",
+    custom_addr: "Custom address (IP or hostname)",
+    start_failed: "Failed to start", stop_failed: "Failed to stop: ",
+    no_service: "Can't reach the local service: ",
+    no_service_confirm: "Can't reach the local service — make sure server.py is running.",
+    timeout: "timeout",
+    elapsed_fmt: (m, s) => `Recorded ${m}m ${String(s).padStart(2,'0')}s`,
+    autostop_fmt: (hhmm) => ` · stops automatically at ${hhmm}`,
+  }
+};
+
+let currentLang = 'zh';
 let pollTimer = null, sinceCount = 0, t0 = null, autoStopTimer = null;
 let series = {}, order = [], names = {};
 
+function setLang(lang){
+  currentLang = lang;
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (I18N[lang] && typeof I18N[lang][key] === 'string') el.textContent = I18N[lang][key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (I18N[lang] && typeof I18N[lang][key] === 'string') el.placeholder = I18N[lang][key];
+  });
+  document.querySelectorAll('.lang-toggle button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  updateWanHint(1); updateWanHint(2);
+  try { localStorage.setItem('nd_lang', lang); } catch(e) {}
+}
+
 function updateWanHint(n){
   const val = document.getElementById('wan' + n).value.trim();
-  const label = KNOWN_HOSTS[val] || (val ? '自定义地址（IP 或网址都行）' : '');
+  const known = KNOWN_HOSTS[val];
+  const label = known ? known[currentLang] : (val ? I18N[currentLang].custom_addr : '');
   document.getElementById('wan' + n + 'Hint').textContent = label ? '→ ' + label : '';
 }
 
@@ -275,10 +370,10 @@ async function startMonitor(){
   const durationMin = parseFloat(document.getElementById('duration').value);
   try{
     const res = await fetch('/api/start', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({gw, wan, interval})});
+      body: JSON.stringify({gw, wan, interval, lang: currentLang})});
     const data = await res.json();
     document.getElementById('startBtn').disabled = false;
-    if (!res.ok){ setError(data.error || '启动失败'); return; }
+    if (!res.ok){ setError(data.error || I18N[currentLang].start_failed); return; }
 
     order = data.order; names = data.names; series = {};
     order.forEach((k, i) => { series[k] = {name: names[k], color: colorFor(k, i), points: []}; });
@@ -297,7 +392,7 @@ async function startMonitor(){
     const autoStopEl = document.getElementById('autoStopText');
     if (durationMin > 0){
       const stopAt = new Date(Date.now() + durationMin * 60000);
-      autoStopEl.textContent = ` · 预计 ${stopAt.toTimeString().slice(0,5)} 自动停止`;
+      autoStopEl.textContent = I18N[currentLang].autostop_fmt(stopAt.toTimeString().slice(0,5));
       autoStopTimer = setTimeout(() => { if (pollTimer) stopMonitor(); }, durationMin * 60000);
     } else {
       autoStopEl.textContent = '';
@@ -307,7 +402,7 @@ async function startMonitor(){
     pollTimer = setInterval(poll, 1000);
   }catch(e){
     document.getElementById('startBtn').disabled = false;
-    setError('无法连接本地服务：' + e);
+    setError(I18N[currentLang].no_service + e);
   }
 }
 
@@ -328,7 +423,7 @@ async function poll(){
 
 function updateElapsed(sec){
   const m = Math.floor(sec/60), s = Math.floor(sec%60);
-  document.getElementById('elapsedText').textContent = `已记录 ${m} 分 ${String(s).padStart(2,'0')} 秒`;
+  document.getElementById('elapsedText').textContent = I18N[currentLang].elapsed_fmt(m, s);
 }
 
 function renderBadges(){
@@ -346,7 +441,7 @@ function updateBadges(latest){
     if (!el) continue;
     const v = latest[k];
     const spike = k === 'gw' ? 50 : 100;
-    if (v === undefined || v === null){ el.textContent = v === null ? '超时' : '—'; el.className = v === null ? 'val bad' : 'val'; }
+    if (v === undefined || v === null){ el.textContent = v === null ? I18N[currentLang].timeout : '—'; el.className = v === null ? 'val bad' : 'val'; }
     else { el.textContent = v.toFixed(1) + ' ms'; el.className = v > spike ? 'val bad' : 'val'; }
   }
 }
@@ -401,11 +496,11 @@ async function stopMonitor(){
     const res = await fetch('/api/stop', {method:'POST'});
     const data = await res.json();
     document.getElementById('stopBtn').disabled = false;
-    if (!res.ok){ setError(data.error || '停止失败'); return; }
+    if (!res.ok){ setError(data.error || I18N[currentLang].stop_failed); return; }
     showResult(data);
   }catch(e){
     document.getElementById('stopBtn').disabled = false;
-    setError('停止失败：' + e);
+    setError(I18N[currentLang].stop_failed + e);
   }
 }
 
@@ -435,6 +530,8 @@ function resetUI(){
 }
 
 async function init(){
+  try { currentLang = localStorage.getItem('nd_lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en'); } catch(e) {}
+  setLang(currentLang);
   try{
     const res = await fetch('/api/status?since=0');
     const data = await res.json();
@@ -461,7 +558,7 @@ async function init(){
   }catch(e){
     document.getElementById('loadingCard').classList.add('hidden');
     document.getElementById('configCard').classList.remove('hidden');
-    setError('无法连接本地服务，请确认 server.py 正在运行。');
+    setError(I18N[currentLang].no_service_confirm);
   }
 }
 
