@@ -272,17 +272,24 @@ def diagnose(records, targets, interval, lang="zh"):
         meta = {"scope": "wan", "pattern": pattern, "detail": detail, "confidence": confidence}
         if pattern == "continuous":
             if en:
-                verdict = ("The fault is past your modem",
+                verdict = ("Likely past your modem — but confirm with your modem's admin page",
                            f"The internet target dropped out completely {detail['count']} times (about "
                            f"{detail['avg_dur']:.0f}s each, longest {detail['max_dur']:.0f}s) while the router "
-                           f"stayed normal throughout. Confidence: {confidence}. This kind of full dropout is "
-                           "usually the modem's connection redialing or an ISP line issue — take this report "
-                           "to your ISP.")
+                           f"stayed normal throughout. Confidence: {confidence}. This pattern is consistent with "
+                           "the modem's PPPoE connection redialing, but ping data alone only shows that the "
+                           "internet segment is the problem, not the exact cause. For harder proof, log into "
+                           "your modem's admin page and check the connection uptime under network status — if "
+                           "it keeps resetting to a few seconds or minutes, that confirms repeated redialing. "
+                           "Bring both pieces of evidence to your ISP.")
             else:
-                verdict = ("问题在光猫之后的外部线路",
+                verdict = ("很可能是光猫之后的外部线路——建议去光猫后台核实",
                            f"外网连续出现 {detail['count']} 段整体超时（平均约 {detail['avg_dur']:.0f} 秒，"
                            f"最长 {detail['max_dur']:.0f} 秒），期间路由器段始终正常。置信度：{confidence}。"
-                           "这种整段掉线多是光猫拨号反复重连或运营商线路波动，可以把这份报告拿去找运营商报修。")
+                           "这种模式符合光猫拨号反复重连的特征，但 ping 数据只能看出"
+                           "外网这段有问题，测不出确切原因。想要更实锤的证据，"
+                           "可以登录光猫管理后台，查看「网络侧信息」里连接的在线时长——"
+                           "如果反复只有几十秒到几分钟，就是反复重拨的实锤证据，"
+                           "把这两份证据一起拿去找运营商报修最有说服力。")
         elif pattern == "periodic":
             if en:
                 verdict = ("Internet latency fluctuates on a regular cycle",
@@ -296,15 +303,18 @@ def diagnose(records, targets, interval, lang="zh"):
                            "较少见，可能是路由器 QoS 策略、定时任务或运营商限速触发，建议结合具体时间点排查。")
         else:
             if en:
-                verdict = ("The fault is past your modem",
+                verdict = ("Likely past your modem — but confirm with your modem's admin page",
                            f"The router stayed stable, but the internet target lagged {len(confirmed)} times "
-                           f"with no fixed pattern yet. Confidence: {confidence}. If it clusters around "
-                           "downloads/streaming, enable router QoS; if it keeps happening independent of usage, "
-                           "take this report to your ISP.")
+                           f"with no fixed pattern yet. Confidence: {confidence}. Check your modem's admin page "
+                           "for the connection uptime to see if it's redialing repeatedly — that's the harder "
+                           "evidence. If the lag clusters around downloads/streaming, it may instead be router "
+                           "QoS; if it keeps happening independent of usage, take this report to your ISP.")
             else:
-                verdict = ("问题在光猫之后的外部线路",
+                verdict = ("很可能是光猫之后的外部线路——建议去光猫后台核实",
                            f"路由器一直稳定，但外网出现 {len(confirmed)} 次卡顿，暂未看出固定规律。置信度：{confidence}。"
-                           "如果集中在有人下载/看视频的时段，开路由器 QoS；如果反复出现且与家里用网无关，可拿这份报告找运营商报修。")
+                           "可以登录光猫管理后台，查看「网络侧信息」里连接的在线时长，确认是否在反复重拨——这是更硬的证据。"
+                           "如果卡顿集中在有人下载/看视频的时段，也可能是路由器 QoS 需要调整；"
+                           "如果反复出现且与家里用网无关，可拿这份报告找运营商报修。")
         return stat, verdict, meta
 
     verdict = (("The network was stable during this run",

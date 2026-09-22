@@ -65,7 +65,7 @@
       "name": "怎么判断卡顿是家里 WiFi 的问题，还是运营商线路的问题？",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "同时测“设备到路由器”和“设备到外网”两段延迟。如果只有外网那段跳高、路由器一直稳定，问题基本在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。"
+        "text": "同时测“设备到路由器”和“设备到外网”两段延迟。如果只有外网那段跳高、路由器一直稳定，问题多半在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。不过 ping 数据只是强烈的间接证据，最硬的证据是登录光猫管理后台，看“网络侧信息”里连接的在线时长是不是在反复重置——这才是能直接说服运营商的实锤。"
       }
     },
     {
@@ -330,8 +330,8 @@ footer a{text-decoration:none;color:var(--accent)}
         <div class="mock">
           <div class="mock-bar"><i></i><i></i><i></i></div>
           <div class="mock-body">
-            <p class="mock-verdict" style="color:var(--wan)" data-i18n="mock_verdict_title">问题在光猫之后的外部线路</p>
-            <p class="mock-desc" data-i18n="mock_verdict_desc">外网连续出现 3 段整体超时（平均约 13 秒），期间路由器段始终正常，可以拿这份报告找运营商报修。</p>
+            <p class="mock-verdict" style="color:var(--wan)" data-i18n="mock_verdict_title">很可能是光猫之后的外部线路</p>
+            <p class="mock-desc" data-i18n="mock_verdict_desc">外网连续出现 3 段整体超时（平均约 13 秒），期间路由器段始终正常。登录光猫后台核实连接在线时长，能拿到更硬的证据。</p>
             <div class="chart-fake">
               <svg viewBox="0 0 300 70" preserveAspectRatio="none">
                 <polyline points="0,50 30,48 60,52 90,20 120,45 150,50 180,15 210,48 240,50 270,25 300,50" fill="none" stroke="var(--gw)" stroke-width="2"/>
@@ -373,7 +373,7 @@ footer a{text-decoration:none;color:var(--accent)}
       </div>
       <div class="faq-item">
         <h3 data-i18n="faq2_q">怎么判断卡顿是家里 WiFi 的问题，还是运营商线路的问题？</h3>
-        <p data-i18n="faq2_a">同时测"设备到路由器"和"设备到外网"两段延迟。如果只有外网那段跳高、路由器一直稳定，问题基本在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。</p>
+        <p data-i18n="faq2_a">同时测"设备到路由器"和"设备到外网"两段延迟。如果只有外网那段跳高、路由器一直稳定，问题多半在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。不过 ping 数据只是强烈的间接证据，最硬的证据是登录光猫管理后台，看"网络侧信息"里连接的在线时长是不是在反复重置——这才是能直接说服运营商的实锤。</p>
       </div>
       <div class="faq-item">
         <h3 data-i18n="faq3_q">为什么要同时测两个外网目标，而不是一个？</h3>
@@ -440,8 +440,8 @@ const I18N = {
     result_1_b: "直接给结论", result_1_p: "不只是给数据，而是告诉你问题出在哪一段、该怎么办。",
     result_2_b: "交互曲线图", result_2_p: "路由器和外网延迟对比，异常一眼看出来。",
     result_3_b: "一份可发送的报告", result_3_p: "独立 HTML 文件，直接发给运营商客服做证据。",
-    mock_verdict_title: "问题在光猫之后的外部线路",
-    mock_verdict_desc: "外网连续出现 3 段整体超时（平均约 13 秒），期间路由器段始终正常，可以拿这份报告找运营商报修。",
+    mock_verdict_title: "很可能是光猫之后的外部线路",
+    mock_verdict_desc: "外网连续出现 3 段整体超时（平均约 13 秒），期间路由器段始终正常。登录光猫后台核实连接在线时长，能拿到更硬的证据。",
     mock_row_gw: "路由器", mock_row_wan1: "外网 阿里DNS", mock_row_wan2: "外网 腾讯DNS",
     mock_view_report: "查看完整报告 ↗", mock_retest: "再测一次",
     features_eyebrow: "特点",
@@ -496,8 +496,8 @@ const I18N = {
     result_1_b: "A straight answer", result_1_p: "Not just raw numbers — a verdict on where the problem is and what to do next.",
     result_2_b: "Interactive chart", result_2_p: "Router vs. internet latency side by side, so spikes jump out immediately.",
     result_3_b: "A report you can send", result_3_p: "A self-contained HTML file you can hand straight to your ISP's support line as evidence.",
-    mock_verdict_title: "The fault is past your modem",
-    mock_verdict_desc: "The internet target dropped out completely 3 times (about 13s each) while the router stayed rock solid — take this report to your ISP.",
+    mock_verdict_title: "Likely past your modem",
+    mock_verdict_desc: "The internet target dropped out completely 3 times (about 13s each) while the router stayed rock solid. Check your modem's admin page for connection uptime to get harder evidence.",
     mock_row_gw: "Router", mock_row_wan1: "Internet (DNS A)", mock_row_wan2: "Internet (DNS B)",
     mock_view_report: "Full report ↗", mock_retest: "Run again",
     features_eyebrow: "Features",
@@ -513,7 +513,7 @@ const I18N = {
     faq1_q: "Why does my internet lag sometimes when a speed test says everything's fine?",
     faq1_a: "A speed test measures your bandwidth at that one instant. Lag is usually a brief dropout or latency spike lasting a few seconds to maybe half a minute — it's often over by the time you run another test. Network Doctor watches continuously over a longer window, so it catches these intermittent problems that one-shot speed tests miss.",
     faq2_q: "How do I tell whether it's my home WiFi or my ISP's line?",
-    faq2_a: "It measures both segments at once: device-to-router and device-to-internet. If only the internet segment spikes while the router stays flat, the fault is past your modem (your ISP's line). If the router itself spikes or drops packets too, the fault is your own WiFi/LAN.",
+    faq2_a: "It measures both segments at once: device-to-router and device-to-internet. If only the internet segment spikes while the router stays flat, the fault is most likely past your modem (your ISP's line). If the router itself spikes or drops packets too, the fault is your own WiFi/LAN. Ping data is only strong circumstantial evidence though — the hardest proof is logging into your modem's admin page and checking whether the connection's uptime keeps resetting, which is what actually convinces an ISP.",
     faq3_q: "Why test two internet targets instead of just one?",
     faq3_a: "If you only test one target, a hiccup on that single server (or it silently blocking ping) can be mistaken for a problem on your own network. When two unrelated targets both show the same issue at the same time, that's much stronger evidence it's really your line — which is why two independent DNS providers are used by default.",
     faq4_q: "Do I need to leave my computer running the whole time?",
