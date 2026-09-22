@@ -1,0 +1,7 @@
+__pycache__/
+netdoctor_*/
+netwatch_*/
+output/
+.claude/
+.DS_Store
+network-troubleshooting-review.md
