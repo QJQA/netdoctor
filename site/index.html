@@ -46,6 +46,62 @@
   }
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "为什么家里网络会偶尔卡顿，但测速却显示正常？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "测速工具测的是那一瞬间的带宽，而卡顿往往是几秒到十几秒的短暂掉线或延迟飙高，两次测速之间就恢复了，普通测速工具根本抓不到。Network Doctor 靠长时间连续监测，能抓到这种偶发问题。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "怎么判断卡顿是家里 WiFi 的问题，还是运营商线路的问题？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "同时测“设备到路由器”和“设备到外网”两段延迟。如果只有外网那段跳高、路由器一直稳定，问题基本在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "为什么要同时测两个外网目标，而不是一个？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "如果只测一个目标，万一那个目标自己抽风或屏蔽了 ping，会被误判成自家网络有问题。两个互不相关的目标同时都测出异常，才更可信是你家线路的事，这也是为什么默认用两家独立 DNS 服务商。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "需要一直开着电脑跑吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "只在监测期间需要。建议至少跑 10 分钟，偶发问题建议跑 30 分钟以上、覆盖平时会卡的时段；跑完生成报告后就可以关掉。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "我的网络数据会被上传到哪里吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "不会。Network Doctor 完全在你自己电脑上运行，所有 ping 记录和报告只保存在本地磁盘，不会联网上传任何数据。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "支持 Windows 吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "目前只测试过 macOS 和 Linux（依赖系统自带 ping 命令的输出格式）。Windows 的 ping 输出格式不同，还没适配，欢迎在 GitHub 上提交兼容性改动。"
+      }
+    }
+  ]
+}
+</script>
 <style>
 :root{--bg:#f6f5f2;--card:#fff;--fg:#1d1d1f;--mute:#6e6e73;--line:#e3e1dc;
 --gw:#2f6fde;--wan:#e8742a;--wan2:#8e44ad;--bad:#d93a3a;--ok:#1f9d55;--accent:#2f6fde}
@@ -161,6 +217,12 @@ border-radius:7px;cursor:pointer;font-weight:600}
 .steps li::before{content:counter(step);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;
 background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .steps b{color:var(--fg)}
+
+.faq-list{display:flex;flex-direction:column}
+.faq-item{padding:22px 0;border-bottom:1px solid var(--line)}
+.faq-item:last-child{border-bottom:none}
+.faq-item h3{font-size:16px;margin:0 0 8px;font-weight:700}
+.faq-item p{font-size:14px;color:var(--mute);margin:0;line-height:1.7}
 
 footer{padding:36px 0;text-align:center;color:var(--mute);font-size:13px;border-top:1px solid var(--line)}
 footer a{text-decoration:none;color:var(--accent)}
@@ -299,6 +361,37 @@ footer a{text-decoration:none;color:var(--accent)}
     </div>
   </section>
 
+  <section id="faq">
+    <p class="eyebrow" data-i18n="faq_eyebrow">常见问题</p>
+    <h2 data-i18n="faq_title">大家常问的几个问题</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <h3 data-i18n="faq1_q">为什么家里网络会偶尔卡顿，但测速却显示正常？</h3>
+        <p data-i18n="faq1_a">测速工具测的是那一瞬间的带宽，而卡顿往往是几秒到十几秒的短暂掉线或延迟飙高，两次测速之间就恢复了，普通测速工具根本抓不到。Network Doctor 靠长时间连续监测，能抓到这种偶发问题。</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq2_q">怎么判断卡顿是家里 WiFi 的问题，还是运营商线路的问题？</h3>
+        <p data-i18n="faq2_a">同时测"设备到路由器"和"设备到外网"两段延迟。如果只有外网那段跳高、路由器一直稳定，问题基本在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq3_q">为什么要同时测两个外网目标，而不是一个？</h3>
+        <p data-i18n="faq3_a">如果只测一个目标，万一那个目标自己抽风或屏蔽了 ping，会被误判成自家网络有问题。两个互不相关的目标同时都测出异常，才更可信是你家线路的事，这也是为什么默认用两家独立 DNS 服务商。</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq4_q">需要一直开着电脑跑吗？</h3>
+        <p data-i18n="faq4_a">只在监测期间需要。建议至少跑 10 分钟，偶发问题建议跑 30 分钟以上、覆盖平时会卡的时段；跑完生成报告后就可以关掉。</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq5_q">我的网络数据会被上传到哪里吗？</h3>
+        <p data-i18n="faq5_a">不会。Network Doctor 完全在你自己电脑上运行，所有 ping 记录和报告只保存在本地磁盘，不会联网上传任何数据。</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq6_q">支持 Windows 吗？</h3>
+        <p data-i18n="faq6_a">目前只测试过 macOS 和 Linux（依赖系统自带 ping 命令的输出格式）。Windows 的 ping 输出格式不同，还没适配，欢迎在 GitHub 上提交兼容性改动。</p>
+      </div>
+    </div>
+  </section>
+
   <section id="install">
     <p class="eyebrow" data-i18n="install_eyebrow">开始使用</p>
     <h2 data-i18n="install_title">三分钟跑起来</h2>
@@ -356,6 +449,20 @@ const I18N = {
     f4_t: "本地网页界面", f4_p: "开始/停止按钮 + 实时曲线，不用碰命令行。",
     f5_t: "断线不丢进度", f5_p: "网页刷新或关掉标签页，后台继续记录，重新打开自动接上。",
     f6_t: "数据不上传", f6_p: "完全在本机运行，所有记录只保存在你自己电脑上。",
+    faq_eyebrow: "常见问题",
+    faq_title: "大家常问的几个问题",
+    faq1_q: "为什么家里网络会偶尔卡顿，但测速却显示正常？",
+    faq1_a: "测速工具测的是那一瞬间的带宽，而卡顿往往是几秒到十几秒的短暂掉线或延迟飙高，两次测速之间就恢复了，普通测速工具根本抓不到。Network Doctor 靠长时间连续监测，能抓到这种偶发问题。",
+    faq2_q: "怎么判断卡顿是家里 WiFi 的问题，还是运营商线路的问题？",
+    faq2_a: "同时测\"设备到路由器\"和\"设备到外网\"两段延迟。如果只有外网那段跳高、路由器一直稳定，问题基本在光猫之后（运营商线路）；如果连路由器都跳高或丢包，问题在你家 WiFi/内网。",
+    faq3_q: "为什么要同时测两个外网目标，而不是一个？",
+    faq3_a: "如果只测一个目标，万一那个目标自己抽风或屏蔽了 ping，会被误判成自家网络有问题。两个互不相关的目标同时都测出异常，才更可信是你家线路的事，这也是为什么默认用两家独立 DNS 服务商。",
+    faq4_q: "需要一直开着电脑跑吗？",
+    faq4_a: "只在监测期间需要。建议至少跑 10 分钟，偶发问题建议跑 30 分钟以上、覆盖平时会卡的时段；跑完生成报告后就可以关掉。",
+    faq5_q: "我的网络数据会被上传到哪里吗？",
+    faq5_a: "不会。Network Doctor 完全在你自己电脑上运行，所有 ping 记录和报告只保存在本地磁盘，不会联网上传任何数据。",
+    faq6_q: "支持 Windows 吗？",
+    faq6_a: "目前只测试过 macOS 和 Linux（依赖系统自带 ping 命令的输出格式）。Windows 的 ping 输出格式不同，还没适配，欢迎在 GitHub 上提交兼容性改动。",
     install_eyebrow: "开始使用",
     install_title: "三分钟跑起来",
     s1_b: "下载代码", s1_p: " — clone 这个仓库到你的电脑（macOS / Linux，需要 Python 3.7+，系统自带即可）",
@@ -397,6 +504,20 @@ const I18N = {
     f4_t: "Local web UI", f4_p: "Start/stop buttons and a live chart — no terminal needed.",
     f5_t: "Survives refresh", f5_p: "Reload the page or close the tab — recording continues in the background and picks back up when you reopen it.",
     f6_t: "Nothing leaves your machine", f6_p: "Runs entirely locally; every record stays on your own computer.",
+    faq_eyebrow: "FAQ",
+    faq_title: "Questions people actually ask",
+    faq1_q: "Why does my internet lag sometimes when a speed test says everything's fine?",
+    faq1_a: "A speed test measures your bandwidth at that one instant. Lag is usually a brief dropout or latency spike lasting a few seconds to maybe half a minute — it's often over by the time you run another test. Network Doctor watches continuously over a longer window, so it catches these intermittent problems that one-shot speed tests miss.",
+    faq2_q: "How do I tell whether it's my home WiFi or my ISP's line?",
+    faq2_a: "It measures both segments at once: device-to-router and device-to-internet. If only the internet segment spikes while the router stays flat, the fault is past your modem (your ISP's line). If the router itself spikes or drops packets too, the fault is your own WiFi/LAN.",
+    faq3_q: "Why test two internet targets instead of just one?",
+    faq3_a: "If you only test one target, a hiccup on that single server (or it silently blocking ping) can be mistaken for a problem on your own network. When two unrelated targets both show the same issue at the same time, that's much stronger evidence it's really your line — which is why two independent DNS providers are used by default.",
+    faq4_q: "Do I need to leave my computer running the whole time?",
+    faq4_a: "Only while it's actively monitoring. Run it for at least 10 minutes; for intermittent issues, 30+ minutes during a time when it usually lags works better. Once it stops and generates the report, you can close it.",
+    faq5_q: "Is my network data uploaded anywhere?",
+    faq5_a: "No. Network Doctor runs entirely on your own computer — every ping record and report is saved to local disk only, nothing is ever sent over the network.",
+    faq6_q: "Does it support Windows?",
+    faq6_a: "Only macOS and Linux have been tested so far (it parses the system ping command's output format). Windows formats its ping output differently and isn't supported yet — pull requests for Windows compatibility are welcome on GitHub.",
     install_eyebrow: "Get started",
     install_title: "Up and running in three minutes",
     s1_b: "Clone it", s1_p: " — clone the repo to your machine (macOS / Linux, Python 3.7+, the system copy is enough)",
