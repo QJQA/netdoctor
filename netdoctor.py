@@ -285,14 +285,14 @@ def diagnose(records, targets, interval, lang="zh"):
                            "with it, checking the connection uptime under your modem's network status page can "
                            "add supporting evidence, but it's optional.)")
             else:
-                verdict = ("很可能是光猫之后的外部线路——建议联系运营商核实",
+                verdict = ("很可能是宽带线路的问题——建议联系运营商核实",
                            f"外网连续出现 {detail['count']} 段整体超时（平均约 {detail['avg_dur']:.0f} 秒，"
                            f"最长 {detail['max_dur']:.0f} 秒），期间路由器段始终正常。置信度：{confidence}。"
                            "这种模式符合线路反复掉线重连的特征，但 ping 数据只能证明外网这段有问题，"
                            "确切原因运营商那边最容易查——最省事的办法是直接带着这份报告联系运营商客服，"
                            "说明“大概每隔几分钟卡顿几秒到十几秒”这个现象，"
-                           "让对方帮你查线路是否有频繁掉线记录，比自己研究光猫后台简单得多。"
-                           "（如果你愿意折腾，也可以顺手登录光猫管理后台看一下「网络侧信息」里的连接在线时长，"
+                           "让对方帮你查线路是否有频繁掉线记录，比自己研究宽带设备后台简单得多。"
+                           "（如果你愿意折腾，也可以顺手登录宽带设备的管理后台看一下「网络侧信息」里的连接在线时长，"
                            "作为补充证据，但不是必须的。）")
         elif pattern == "periodic":
             if en:
@@ -316,11 +316,11 @@ def diagnose(records, targets, interval, lang="zh"):
                            "modem's admin page yourself (though that's an option too, if you're comfortable "
                            "with it, checking the connection uptime under network status can add evidence).")
             else:
-                verdict = ("很可能是光猫之后的外部线路——建议联系运营商核实",
+                verdict = ("很可能是宽带线路的问题——建议联系运营商核实",
                            f"路由器一直稳定，但外网出现 {len(confirmed)} 次卡顿，暂未看出固定规律。置信度：{confidence}。"
                            "如果卡顿集中在有人下载/看视频的时段，也可能是路由器 QoS 需要调整；"
                            "如果不是，最省事的办法是带着这份报告联系运营商客服，让对方帮你查线路侧有没有掉线记录，"
-                           "比自己研究光猫后台简单。（愿意折腾的话，也可以顺手去光猫管理后台看看「网络侧信息」的"
+                           "比自己研究宽带设备后台简单。（愿意折腾的话，也可以顺手去宽带设备的管理后台看看「网络侧信息」的"
                            "连接在线时长，作为补充证据。）")
         return stat, verdict, meta
 
@@ -348,7 +348,7 @@ REPORT_STRINGS = {
         "sub": "开始于 {start} · 共记录 {dur:.1f} 分钟 · {events}",
         "legend_bad": "顶部红点 = 超时丢包",
         "legend_spike": "虚线 = {ms}ms 卡顿线",
-        "chart_note": "怎么看：所有线都同时跳高 → 问题在家里 WiFi/内网；只有外网线跳高、路由器线平稳 → 问题在光猫之后的外部线路；"
+        "chart_note": "怎么看：所有线都同时跳高 → 问题在家里 WiFi/内网；只有外网线跳高、路由器线平稳 → 问题在宽带线路那一段；"
                        "只有一个外网目标单独跳高 → 可能是那个目标自己不稳定，不代表你家线路有问题。",
         "th": ["目标", "包数", "丢包率", "平均", "中位数", "95%", "最高", "异常次数"],
         "table_note": "异常次数：路由器 &gt; {gw}ms 或超时；外网 &gt; {wan}ms 或超时。"
