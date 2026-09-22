@@ -493,7 +493,7 @@ def main():
             names[k] = f"外网 {wan_label(host)}"
 
     started = datetime.now()
-    outdir = os.path.join(os.getcwd(), "netdoctor_" + started.strftime("%Y%m%d_%H%M"))
+    outdir = os.path.join(os.getcwd(), "runs", "netdoctor_" + started.strftime("%Y%m%d_%H%M"))
     os.makedirs(outdir, exist_ok=True)
     csv_path = os.path.join(outdir, "data.csv")
     report_path = os.path.join(outdir, "report.html")

@@ -1,7 +1,5 @@
 __pycache__/
-netdoctor_*/
-netwatch_*/
-output/
+runs/
 .claude/
 .DS_Store
 network-troubleshooting-review.md

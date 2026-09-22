@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-server.py — NetDoctor 本地网页界面
+server.py — Network Doctor 本地网页界面
 
 点"开始监测"→ 浏览器里看实时曲线 → 点"停止并生成报告"→ 生成 HTML 报告。
 底层复用 netdoctor.py 的探测/判断逻辑，不引入任何第三方依赖。
@@ -25,7 +25,7 @@ import netdoctor as nw
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(BASE_DIR, "index.html")
-OUTDIR_RE = re.compile(r"^netdoctor_\d{8}_\d{6}/(report\.html|data\.csv)$")
+OUTDIR_RE = re.compile(r"^runs/netdoctor_\d{8}_\d{6}/(report\.html|data\.csv)$")
 
 
 class Monitor:
@@ -73,7 +73,7 @@ class Monitor:
             self.order = list(targets.keys())
             self.interval = interval
             self.started = datetime.now()
-            self.outdir = os.path.join(os.getcwd(), "netdoctor_" + self.started.strftime("%Y%m%d_%H%M%S"))
+            self.outdir = os.path.join(os.getcwd(), "runs", "netdoctor_" + self.started.strftime("%Y%m%d_%H%M%S"))
             os.makedirs(self.outdir, exist_ok=True)
             self.running = True
 
@@ -176,7 +176,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/status":
             since = int(parse_qs(parsed.query).get("since", ["0"])[0])
             self._json(200, monitor.snapshot(since))
-        elif path.startswith("/netdoctor_"):
+        elif path.startswith("/runs/netdoctor_"):
             rel = path.lstrip("/")
             if OUTDIR_RE.match(rel):
                 full = os.path.join(os.getcwd(), rel)
@@ -215,14 +215,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="NetDoctor 本地网页界面")
+    ap = argparse.ArgumentParser(description="Network Doctor 本地网页界面")
     ap.add_argument("-p", "--port", type=int, default=7656)
     ap.add_argument("--no-open", action="store_true", help="不自动打开浏览器")
     args = ap.parse_args()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{args.port}"
-    print(f"NetDoctor 网页界面已启动：{url}")
+    print(f"Network Doctor 网页界面已启动：{url}")
     print("按 Ctrl+C 停止服务")
     if not args.no_open:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
