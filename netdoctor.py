@@ -11,6 +11,9 @@ netdoctor.py — Mac 家庭网络持续监测
   python3 netdoctor.py -m 60                    # 跑 60 分钟后自动结束
   python3 netdoctor.py --lang en                # 英文界面/报告
   python3 netdoctor.py --gw 192.168.1.1 --wan 223.5.5.5 119.29.29.29  # 手动指定地址
+  python3 netdoctor.py -m 15 --out ~/netdoctor-runs --no-open  # 给 AI 助手/脚本调用：后台跑，结果写 summary.json
+
+支持 macOS / Linux / Windows（Windows 用 `py -3 netdoctor.py` 或 `python netdoctor.py`）。
 """
 import argparse
 import csv
@@ -22,9 +25,18 @@ import subprocess
 import sys
 import threading
 import time
+import pathlib
+import webbrowser
 from datetime import datetime
 
-RTT_RE = re.compile(r"time[=<]([\d.]+)\s*ms")
+# macOS/Linux: "time=12.3 ms"；Windows 英文: "time=12ms" / "time<1ms"；Windows 中文: "时间=12ms"。
+# 不匹配 "time"/"时间" 字样本身：中文 Windows 的输出编码不一定能正确解码，只认 "=数字ms" / "<数字ms"。
+RTT_RE = re.compile(r"[=<]\s*([\d.]+)\s*ms")
+
+IS_WIN = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
+# Windows 下从无控制台的程序（比如 AI 助手）调用 ping 时，不弹黑色命令行窗口
+_NO_WINDOW = {"creationflags": 0x08000000} if IS_WIN else {}
 
 WAN_SPIKE_MS = 100   # 外网延迟超过这个值算一次"卡顿"
 GW_SPIKE_MS = 50     # 路由器延迟超过这个值算内网异常（正常 WiFi 一般 < 10ms）
@@ -64,12 +76,21 @@ def make_names(targets, lang="zh"):
     return names
 
 
+def _run(cmd, timeout):
+    return subprocess.run(cmd, capture_output=True, text=True, errors="replace",
+                          timeout=timeout, **_NO_WINDOW).stdout
+
+
 def detect_gateway():
-    """自动找到当前网络的路由器地址。"""
+    """自动找到当前网络的路由器地址（macOS / Linux / Windows）。"""
     try:
-        out = subprocess.run(["route", "-n", "get", "default"],
-                             capture_output=True, text=True, timeout=3).stdout
-        m = re.search(r"gateway:\s*(\S+)", out)
+        if IS_MAC:
+            m = re.search(r"gateway:\s*(\S+)", _run(["route", "-n", "get", "default"], 3))
+        elif IS_WIN:
+            m = re.search(r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)",
+                          _run(["route", "print", "-4", "0.0.0.0"], 5), re.M)
+        else:
+            m = re.search(r"default via (\S+)", _run(["ip", "route", "show", "default"], 3))
         if m:
             return m.group(1)
     except Exception:
@@ -77,13 +98,18 @@ def detect_gateway():
     return "192.168.1.1"
 
 
+def ping_cmd(host, timeout_ms):
+    if IS_WIN:
+        return ["ping", "-n", "1", "-w", str(timeout_ms), host]
+    if IS_MAC:
+        return ["ping", "-c", "1", "-W", str(timeout_ms), host]   # macOS 的 -W 单位是毫秒
+    return ["ping", "-c", "1", "-W", str(max(1, -(-timeout_ms // 1000))), host]  # Linux 的 -W 单位是秒
+
+
 def ping_once(host, timeout_ms):
     """发一个 ping 包，返回延迟毫秒数；超时/失败返回 None。"""
     try:
-        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout_ms), host],
-                           capture_output=True, text=True,
-                           timeout=timeout_ms / 1000 + 2)
-        m = RTT_RE.search(r.stdout)
+        m = RTT_RE.search(_run(ping_cmd(host, timeout_ms), timeout_ms / 1000 + 2))
         return float(m.group(1)) if m else None
     except Exception:
         return None
@@ -447,6 +473,47 @@ def build_report(records, targets, names, interval, started, path, lang="zh"):
     return stat, verdict
 
 
+def write_summary(records, targets, names, interval, started, path, report_path, csv_path, lang="zh"):
+    """把结论和关键数字写成 summary.json，方便 AI 助手读取后向用户解释、生成报修话术。"""
+    stat, verdict, meta = diagnose(records, targets, interval, lang)
+    t0 = min(t for t, _, _ in records)
+    t1 = max(t for t, _, _ in records)
+
+    def hms(ts):
+        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+
+    # 每个目标的"连续异常段"（超时或超阈值连成一段），按持续时间倒序取前 10 段
+    outages = {}
+    for k in targets:
+        spike = GW_SPIKE_MS if k == "gw" else WAN_SPIKE_MS
+        blocks = group_blocks(spike_events([(t, v) for t, kk, v in records if kk == k], spike), interval)
+        segs = [{"start": hms(b[0]), "seconds": round(b[-1] - b[0] + interval, 1), "samples": len(b)}
+                for b in blocks]
+        outages[k] = sorted(segs, key=lambda x: -x["seconds"])[:10]
+
+    def r1(v):
+        return None if v is None else round(v, 1)
+
+    data = {
+        "started": started.strftime("%Y-%m-%d %H:%M:%S"),
+        "ended": datetime.fromtimestamp(t1).strftime("%Y-%m-%d %H:%M:%S"),
+        "minutes": round((t1 - t0) / 60, 1),
+        "platform": sys.platform,
+        "thresholds_ms": {"router": GW_SPIKE_MS, "internet": WAN_SPIKE_MS},
+        "targets": {k: {"name": names[k], "host": targets[k],
+                        **{m: r1(v) if isinstance(v, float) else v for m, v in stat[k].items()}}
+                    for k in targets},
+        "verdict": {"title": verdict[0], "detail": verdict[1]},
+        "pattern": meta,
+        "outage_segments": outages,
+        "report_html": report_path,
+        "data_csv": csv_path,
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return data
+
+
 TEMPLATE = r"""<!doctype html>
 <html lang="__HTML_LANG__"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -607,6 +674,8 @@ CLI_STRINGS = {
         "help_interval": "ping 间隔秒数（默认 1）",
         "help_timeout": "单包超时毫秒（默认 2000）",
         "help_lang": "报告和界面语言：zh 或 en（默认 zh）",
+        "help_out": "结果保存目录（默认当前目录下的 runs/）",
+        "help_no_open": "结束后不自动打开报告",
         "prechecking": "预检目标（每个测 2 次）...",
         "no_wan": "所有外网目标都不可用，无法继续监测。换个 --wan 地址试试。",
         "started": "开始监测  {targets}",
@@ -619,6 +688,7 @@ CLI_STRINGS = {
         "loss_avg_max": "丢包 {loss:.1f}%  平均 {avg}  最高 {max}",
         "verdict_label": "判断：{v}",
         "report_label": "报告：{path}",
+        "summary_label": "摘要：{path}",
         "csv_header": ["时间", "目标", "地址", "延迟ms（空=超时）"],
         "timeout": " 超时  ",
     },
@@ -630,6 +700,8 @@ CLI_STRINGS = {
         "help_interval": "ping interval in seconds (default 1)",
         "help_timeout": "per-packet timeout in ms (default 2000)",
         "help_lang": "report/UI language: zh or en (default zh)",
+        "help_out": "directory to save results in (default: runs/ under the current directory)",
+        "help_no_open": "don't open the report automatically when finished",
         "prechecking": "Prechecking targets (2 pings each)...",
         "no_wan": "None of the internet targets are reachable, can't continue. Try a different --wan address.",
         "started": "Monitoring started  {targets}",
@@ -642,6 +714,7 @@ CLI_STRINGS = {
         "loss_avg_max": "loss {loss:.1f}%  avg {avg}  max {max}",
         "verdict_label": "Verdict: {v}",
         "report_label": "Report: {path}",
+        "summary_label": "Summary: {path}",
         "csv_header": ["time", "target", "address", "latency_ms (blank = timeout)"],
         "timeout": " timeout ",
     },
@@ -656,6 +729,13 @@ def color(v, spike, timeout_label):
 
 
 def main():
+    # Windows 控制台默认 GBK，打印 ⚠ 之类的字符会崩；统一替换成 ? 而不是报错退出
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except Exception:
+            pass
+
     pre = argparse.ArgumentParser(add_help=False)
     pre.add_argument("--lang", default="zh", choices=["zh", "en"])
     pre_args, _ = pre.parse_known_args()
@@ -669,6 +749,8 @@ def main():
     ap.add_argument("-i", "--interval", type=float, default=1.0, help=L["help_interval"])
     ap.add_argument("--timeout", type=int, default=2000, help=L["help_timeout"])
     ap.add_argument("--lang", default="zh", choices=["zh", "en"], help=L["help_lang"])
+    ap.add_argument("--out", help=L["help_out"])
+    ap.add_argument("--no-open", action="store_true", help=L["help_no_open"])
     args = ap.parse_args()
     lang = args.lang
     L = CLI_STRINGS.get(lang, CLI_STRINGS["zh"])
@@ -688,10 +770,15 @@ def main():
     names = make_names(targets, lang)
 
     started = datetime.now()
-    outdir = os.path.join(os.getcwd(), "runs", "netdoctor_" + started.strftime("%Y%m%d_%H%M"))
+    base = os.path.expanduser(args.out) if args.out else os.path.join(os.getcwd(), "runs")
+    outdir = os.path.join(base, "netdoctor_" + started.strftime("%Y%m%d_%H%M%S"))
     os.makedirs(outdir, exist_ok=True)
     csv_path = os.path.join(outdir, "data.csv")
     report_path = os.path.join(outdir, "report.html")
+    summary_path = os.path.join(outdir, "summary.json")
+    # 不在终端里（被 AI 助手或脚本后台调用）时，不刷 \r 进度条，改成每 30 秒打一行
+    live = sys.stdout.isatty()
+    last_line = 0.0
 
     print(L["started"].format(targets=" | ".join(f"{names[k]}: {targets[k]}" for k in targets)))
     print(L["saving_to"].format(outdir=outdir))
@@ -726,15 +813,19 @@ def main():
                             names[k], targets[k], "" if v is None else v])
             f.flush()
             elapsed = time.time() - t_start
-            status = "  ".join(
-                f"{names[k].replace('外网 ', '').replace('Internet — ', '')} "
-                f"{color(cur[k], GW_SPIKE_MS if k == 'gw' else WAN_SPIKE_MS, L['timeout'])}"
-                for k in order
-            )
             recorded = L["recorded"].format(m=int(elapsed // 60), s=int(elapsed % 60))
-            sys.stdout.write(f"\r{datetime.now():%H:%M:%S}  {status}   {recorded}   "
-                             f"{L['wan_spikes'].format(n=wan_bad)}   ")
-            sys.stdout.flush()
+            if live:
+                status = "  ".join(
+                    f"{names[k].replace('外网 ', '').replace('Internet — ', '')} "
+                    f"{color(cur[k], GW_SPIKE_MS if k == 'gw' else WAN_SPIKE_MS, L['timeout'])}"
+                    for k in order
+                )
+                sys.stdout.write(f"\r{datetime.now():%H:%M:%S}  {status}   {recorded}   "
+                                 f"{L['wan_spikes'].format(n=wan_bad)}   ")
+                sys.stdout.flush()
+            elif elapsed - last_line >= 30:
+                last_line = elapsed
+                print(f"{datetime.now():%H:%M:%S}  {recorded}  {L['wan_spikes'].format(n=wan_bad)}", flush=True)
             if args.minutes and elapsed >= args.minutes * 60:
                 break
     except KeyboardInterrupt:
@@ -754,15 +845,18 @@ def main():
         print(L["no_records"])
         return
     stat, verdict = build_report(records, targets, names, args.interval, started, report_path, lang)
+    write_summary(records, targets, names, args.interval, started, summary_path, report_path, csv_path, lang)
     for k in order:
         s = stat[k]
         print(f"{names[k]}：{L['loss_avg_max'].format(loss=s['loss'], avg=fmt(s['avg']), max=fmt(s['max']))}")
     print(L["verdict_label"].format(v=verdict[0]))
     print(L["report_label"].format(path=report_path))
-    try:
-        subprocess.run(["open", report_path], check=False)
-    except Exception:
-        pass
+    print(L["summary_label"].format(path=summary_path))
+    if not args.no_open:
+        try:
+            webbrowser.open(pathlib.Path(report_path).resolve().as_uri())
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

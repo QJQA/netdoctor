@@ -31,6 +31,7 @@ python3 server.py
 # 纯命令行版本
 python3 netdoctor.py                 # 一直跑，按 Ctrl+C 结束并生成报告
 python3 netdoctor.py -m 30           # 跑 30 分钟后自动结束
+python3 netdoctor.py -m 15 --out ~/netdoctor-runs --no-open   # 指定保存目录、结束后不自动打开报告（适合脚本或 AI 助手调用）
 python3 netdoctor.py --gw 192.168.1.1 --wan 223.5.5.5 119.29.29.29
 ```
 
@@ -38,7 +39,9 @@ python3 netdoctor.py --gw 192.168.1.1 --wan 223.5.5.5 119.29.29.29
 
 ## 环境要求
 
-macOS / Linux，Python 3.7+（自带的 `python3` 即可，无需 `pip install` 任何东西）。
+macOS / Linux / Windows，Python 3.7+（自带的 `python3` 即可，无需 `pip install` 任何东西；Windows 用 `py -3 netdoctor.py`）。双击启动器只适用于 macOS。
+
+每次跑完除了 HTML 报告，还会生成 `summary.json`（结论、各目标的统计和最长的几段异常时间），方便程序或 AI 助手读取。
 
 ## 原理
 
@@ -89,6 +92,7 @@ python3 server.py
 # CLI only
 python3 netdoctor.py                 # runs until Ctrl+C, then writes a report
 python3 netdoctor.py -m 30           # run for 30 minutes and stop automatically
+python3 netdoctor.py -m 15 --out ~/netdoctor-runs --no-open   # choose the output folder, don't open the report (for scripts / AI assistants)
 python3 netdoctor.py --gw 192.168.1.1 --wan 223.5.5.5 119.29.29.29
 ```
 
@@ -96,7 +100,9 @@ Each run writes a self-contained HTML report with an interactive chart to `runs/
 
 ### Requirements
 
-macOS / Linux, Python 3.7+ (the system-provided `python3` is enough — nothing to `pip install`).
+macOS / Linux / Windows, Python 3.7+ (the system-provided `python3` is enough — nothing to `pip install`; on Windows use `py -3 netdoctor.py`). The double-click launcher is macOS-only.
+
+Besides the HTML report, each run writes `summary.json` (verdict, per-target stats and the longest outage segments) for scripts or AI assistants to read.
 
 ### How it works
 
