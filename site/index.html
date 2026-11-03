@@ -233,7 +233,27 @@ footer a{text-decoration:none;color:var(--accent)}
   .split .mock-col{order:-1}
   h1{font-size:30px}
 }
-</style></head><body>
+</style><!-- 百度统计 + 点击统计：带 data-track="类别:动作[:标签]" 的元素被点击时上报事件，点向其他网站的链接自动上报 -->
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?d402dc9f3ebc990f77c56eccd9d3cd52";
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+document.addEventListener("click", function (e) {
+  var el = e.target.closest && e.target.closest("[data-track], a[href^='http']");
+  if (!el) return;
+  if (el.dataset.track) {
+    var p = el.dataset.track.split(":");
+    _hmt.push(["_trackEvent", p[0], p[1] || "点击", p[2] || ""]);
+  } else if (el.host !== location.host) {
+    _hmt.push(["_trackEvent", "外链", "点击", el.host + el.pathname]);
+  }
+}, true);
+</script>
+</head><body>
 
 <div class="wrap">
   <nav>
@@ -407,7 +427,7 @@ footer a{text-decoration:none;color:var(--accent)}
       <pre id="cloneCmd">git clone https://github.com/QJQA/netdoctor.git
 <span class="c">cd netdoctor</span>
 python3 server.py</pre>
-      <button class="copy-btn" onclick="copyCode(this)" data-i18n="copy_btn">复制</button>
+      <button class="copy-btn" data-track="安装:复制命令" onclick="copyCode(this)" data-i18n="copy_btn">复制</button>
     </div>
   </section>
 
